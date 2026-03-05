@@ -187,6 +187,7 @@ Filters out low-quality content at both auto-capture and tool-store stages:
   - Controlled by `memoryReflection.storeToLanceDB` (effective only under `sessionStrategy=memoryReflection`).
   - Only non-fallback reflections are eligible for LanceDB persistence.
   - Additional similarity dedupe is applied before write (`> 0.97` hit skips storing).
+  - Reflections are stored with category `reflection`, and are displayed as `reflection:<scope>`.
 - Dedicated agent (optional): run reflection generation with another agent via `memoryReflection.agentId` (e.g. `memory-distiller`)
   - If configured `memoryReflection.agentId` is not found in `cfg.agents.list`, plugin logs a clear warning and falls back to runtime agent id.
   - For embedded runs, the plugin resolves the target agent's primary model ref (`provider/model`) and passes `provider` + `model` explicitly.
@@ -196,7 +197,25 @@ Filters out low-quality content at both auto-capture and tool-store stages:
   - Reflection-derived lines are extracted with `reflect|inherit|derive|change|apply` matching.
 - Error loop: `after_tool_call` captures and deduplicates tool error signatures for reminder/reflection context
 
-### 10. Auto-Capture & Auto-Recall
+### 10. Markdown Mirror (`mdMirror`)
+
+- Purpose:
+  - Dual-write memory entries to readable Markdown files in addition to LanceDB.
+  - Useful for audit/debug/manual review.
+- Write paths:
+  - Preferred: mapped agent workspace `memory/YYYY-MM-DD.md`.
+  - Fallback: `mdMirror.dir` (default: `memory-md`) when agent workspace mapping is unavailable.
+- Trigger points:
+  - `memory_store` tool writes.
+  - Auto-capture writes from `agent_end`.
+- Compatibility:
+  - Does not replace LanceDB storage or retrieval flow.
+  - Existing retrieval remains vector/BM25/rerank based.
+- Config:
+  - `mdMirror.enabled`: enable/disable dual-write (`false` by default).
+  - `mdMirror.dir`: fallback directory for Markdown mirror files.
+
+### 11. Auto-Capture & Auto-Recall
 
 - **Auto-Capture** (`agent_end` hook): Extracts preference/fact/decision/entity from conversations, deduplicates, stores up to 3 per turn
   - Skips memory-management prompts (e.g. delete/forget/cleanup memory entries) to reduce noise
@@ -429,6 +448,10 @@ openclaw config get plugins.slots.memory
     "thinkLevel": "medium",
     "errorReminderMaxEntries": 3,
     "dedupeErrorSignals": true
+  },
+  "mdMirror": {
+    "enabled": false,
+    "dir": "memory-md"
   }
 }
 ```

@@ -187,6 +187,7 @@ Query → BM25 FTS ─────┘
   - 由 `memoryReflection.storeToLanceDB` 控制（且仅在 `sessionStrategy=memoryReflection` 下生效）。
   - 只有非 fallback 反思才会进入 LanceDB 持久化流程。
   - 写入前会做相似度去重（命中 `> 0.97` 则跳过入库）。
+  - 反思记忆写入时使用分类 `reflection`，展示标签为 `reflection:<scope>`。
 - 独立代理（可选）：通过 `memoryReflection.agentId` 指定用于反思生成的代理（例如 `memory-distiller`）
   - 若配置的 `memoryReflection.agentId` 不在 `cfg.agents.list` 中，插件会明确 `warn` 并回退到当前 runtime agent id。
   - 对 embedded 运行，插件会解析目标代理主模型引用（`provider/model`），并显式传入 `provider` 与 `model`。
@@ -196,7 +197,25 @@ Query → BM25 FTS ─────┘
   - 派生行提取关键词：`reflect|inherit|derive|change|apply`。
 - 错误闭环：`after_tool_call` 捕获并去重工具错误签名，用于提醒与反思上下文
 
-### 10. 自动捕获 & 自动回忆
+### 10. Markdown 镜像（`mdMirror`）
+
+- 作用：
+  - 在写入 LanceDB 的同时，把记忆双写到可读的 Markdown 文件。
+  - 便于审计、排查和人工复核。
+- 写入路径：
+  - 优先：按 agent workspace 映射写入 `memory/YYYY-MM-DD.md`。
+  - 回退：当 agent workspace 不可解析时，写入 `mdMirror.dir`（默认 `memory-md`）。
+- 触发路径：
+  - `memory_store` 工具写入。
+  - `agent_end` 自动捕获写入。
+- 兼容性：
+  - 不替代 LanceDB 存储，不影响现有检索链路。
+  - 检索仍走 vector/BM25/rerank。
+- 配置项：
+  - `mdMirror.enabled`：是否开启双写（默认 `false`）。
+  - `mdMirror.dir`：Markdown 镜像回退目录。
+
+### 11. 自动捕获 & 自动回忆
 
 - **Auto-Capture**（`agent_end` hook）: 从对话中提取 preference/fact/decision/entity，去重后存储（每次最多 3 条）
   - 触发词支持 **简体中文 + 繁體中文**（例如：记住/記住、偏好/喜好/喜歡、决定/決定 等）
@@ -427,6 +446,10 @@ openclaw config get plugins.slots.memory
     "thinkLevel": "medium",
     "errorReminderMaxEntries": 3,
     "dedupeErrorSignals": true
+  },
+  "mdMirror": {
+    "enabled": false,
+    "dir": "memory-md"
   }
 }
 ```
