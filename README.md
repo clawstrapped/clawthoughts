@@ -232,7 +232,29 @@ Filters out low-quality content at both auto-capture and tool-store stages:
   - `mdMirror.enabled`: enable/disable dual-write (`false` by default).
   - `mdMirror.dir`: fallback directory for Markdown mirror files.
 
-### 11. Auto-Capture & Auto-Recall
+### 11. Long Context Chunking
+
+Automatically handles documents that exceed embedding model context limits:
+
+- **Smart splitting**: Chunks at sentence boundaries with configurable overlap (default: 200 chars)
+- **Averaged embedding**: Each chunk is embedded separately, then averaged for semantic preservation
+- **Graceful error handling**: Detects "Input length exceeds context length" errors and retries with chunking
+- **Config toggle**: `embedding.chunking` — set `false` to disable (default: auto-enabled on context-length errors)
+- **Adapts to model limits**: Jina (8192 tokens), OpenAI (8191), Gemini (2048), etc.
+
+See [`docs/long-context-chunking.md`](docs/long-context-chunking.md) for implementation details.
+
+### 12. Embedding Error Diagnostics
+
+When embedding calls fail, the plugin provides **actionable error messages** instead of generic errors:
+
+- **Auth errors** (401/403): hints to check API key validity and format
+- **Network errors** (ECONNREFUSED, ETIMEDOUT): hints to verify `baseURL` and network connectivity
+- **Rate limits** (429): suggests retry or upgrading plan
+- **Model not found** (404): suggests checking model name against provider docs
+- **Context length exceeded**: automatically retries with chunking (see above)
+
+### 13. Auto-Capture & Auto-Recall
 
 - **Auto-Capture** (`agent_end` hook): Extracts preference/fact/decision/entity from conversations, deduplicates, stores up to 3 per turn
   - Skips memory-management prompts (e.g. delete/forget/cleanup memory entries) to reduce noise
@@ -270,6 +292,20 @@ Add a line to your agent system prompt, e.g.:
 ---
 
 ## Installation
+
+> **🧪 Beta available: v1.1.0-beta.3**
+>
+> A beta release is available with major new features: **Self-Improvement governance**, **memoryReflection session strategy**, **Markdown Mirror**, and improved embedding error diagnostics. The stable `latest` remains at v1.0.32.
+>
+> ```bash
+> # Install beta (opt-in)
+> npm install memory-lancedb-pro@beta
+>
+> # Install stable (default)
+> npm install memory-lancedb-pro
+> ```
+>
+> See [Release Notes](https://github.com/win4r/memory-lancedb-pro/releases/tag/v1.1.0-beta.3) for details. Feedback welcome via [GitHub Issues](https://github.com/win4r/memory-lancedb-pro/issues).
 
 ### AI-safe install notes (anti-hallucination)
 
