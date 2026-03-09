@@ -145,7 +145,7 @@ async function runFunctionalE2E() {
     const versionOutput = await captureStdout(async () => {
       await program.parseAsync(["node", "openclaw", "memory-pro", "version"]);
     });
-    assert.match(versionOutput, /1\.1\.0-beta\.4/);
+    assert.match(versionOutput, /1\.1\.0-beta\.5/);
 
     const importOutput = await captureStdout(async () => {
       await program.parseAsync([
