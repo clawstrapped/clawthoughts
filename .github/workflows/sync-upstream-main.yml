@@ -1,0 +1,67 @@
+name: Sync upstream-main from mirror
+
+on:
+  schedule:
+    - cron: "37 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out clawthoughts
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add mirror remote
+        run: |
+          git remote add mirror https://github.com/tomfrazier/memory-lancedb-pro.git
+          git fetch mirror
+          git fetch origin
+
+      - name: Detect whether mirror changed
+        id: detect
+        run: |
+          MIRROR_SHA=$(git rev-parse mirror/master)
+          CURRENT_SHA=$(git rev-parse origin/upstream-main)
+          echo "mirror_sha=$MIRROR_SHA" >> $GITHUB_OUTPUT
+          echo "current_sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Update upstream-main
+        if: steps.detect.outputs.mirror_sha != steps.detect.outputs.current_sha
+        run: |
+          git checkout -B upstream-main
+          git reset --hard mirror/master
+          git push origin upstream-main --force
+
+      - name: Create PR if needed
+        if: steps.detect.outputs.mirror_sha != steps.detect.outputs.current_sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING_PR=$(gh pr list \
+            --base main \
+            --head upstream-main \
+            --json number \
+            --jq '.[0].number')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR already exists: $EXISTING_PR"
+          else
+            gh pr create \
+              --base main \
+              --head upstream-main \
+              --title "Sync upstream changes into main" \
+              --body "Automated PR from upstream-main after syncing from tomfrazier/memory-lancedb-pro."
+          fi
