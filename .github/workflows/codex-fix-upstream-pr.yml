@@ -29,23 +29,26 @@ jobs:
           PR_JSON=$(gh pr list \
             --state open \
             --json number,headRefName,baseRefName \
-            --jq '.[] | select(.headRefName=="upstream-main" and .baseRefName=="main")')
+            --jq '.[] | select((.headRefName | startswith("upstream-main")) and .baseRefName=="main") | first')
 
-          if [ -z "$PR_JSON" ]; then
-            echo "No open upstream-main -> main PR found"
+          if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+            echo "No open upstream-main* -> main PR found"
             echo "should_run=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          PR_HEAD=$(echo "$PR_JSON" | jq -r '.headRefName')
+
           echo "should_run=true" >> $GITHUB_OUTPUT
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "pr_head=$PR_HEAD" >> $GITHUB_OUTPUT
 
       - name: Check out PR branch
         if: steps.pr.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
-          ref: upstream-main
+          ref: ${{ steps.pr.outputs.pr_head }}
           fetch-depth: 0
 
       - name: Set up Node
@@ -87,7 +90,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "Codex: fix failing upstream sync PR"
-          git push origin HEAD:upstream-main
+          git push origin HEAD:${{ steps.pr.outputs.pr_head }}
 
       - name: Ask Codex for review on PR
         if: steps.pr.outputs.should_run == 'true'
