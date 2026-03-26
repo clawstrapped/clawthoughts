@@ -1,8 +1,9 @@
 name: CI
 
 on:
-  push:
   pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   version-sync:
@@ -10,6 +11,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Check version consistency
         run: |
