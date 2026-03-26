@@ -30,7 +30,7 @@ jobs:
           git fetch mirror
           git fetch origin
 
-      - name: Detect whether mirror changed
+      - name: Detect mirror change
         id: detect
         run: |
           MIRROR_SHA=$(git rev-parse mirror/master)
@@ -45,8 +45,16 @@ jobs:
           git reset --hard mirror/master
           git push origin upstream-main --force
 
+      - name: Check whether upstream-main is ahead of main
+        id: aheadcheck
+        run: |
+          git fetch origin main upstream-main
+          AHEAD_COUNT=$(git rev-list --count origin/main..origin/upstream-main)
+          echo "ahead_count=$AHEAD_COUNT" >> $GITHUB_OUTPUT
+          echo "ahead_count=$AHEAD_COUNT"
+
       - name: Create PR if needed
-        if: steps.detect.outputs.mirror_sha != steps.detect.outputs.current_sha
+        if: steps.aheadcheck.outputs.ahead_count != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,3 +73,7 @@ jobs:
               --title "Sync upstream changes into main" \
               --body "Automated PR from upstream-main after syncing from tomfrazier/memory-lancedb-pro."
           fi
+
+      - name: No PR needed
+        if: steps.aheadcheck.outputs.ahead_count == '0'
+        run: echo "upstream-main has no commits ahead of main; skipping PR creation."
